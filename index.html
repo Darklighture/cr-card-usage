@@ -165,14 +165,14 @@
             avgPrefix: '平均',
             note: '📅  卡牌使用率数据根据各赛季天梯topk玩家卡组整理',
             categories: {
-                spell: '法术',
                 core: '核心',
+                spell: '法术',
                 building: '建筑',
-                evo: '进化',
                 melee: '近战',
+                ranged: '远程',
                 air: '空军',
                 hero: '英雄',
-                ranged: '远程',
+                evo: '进化',
                 tower: '塔楼'
             },
             usageSuffix: '%'
@@ -183,14 +183,14 @@
             avgPrefix: 'Avg',
             note: '📅  Card usage data is compiled based on the decks of top players in the ladder each season.',
             categories: {
-                spell: 'Spell',
                 core: 'Win-condition',
+                spell: 'Spell',
                 building: 'Building',
-                evo: 'Evolution',
                 melee: 'Melee',
+                ranged: 'Ranged',
                 air: 'Air',
                 hero: 'Hero',
-                ranged: 'Ranged',
+                evo: 'Evolution',
                 tower: 'Tower'
             },
             usageSuffix: '%'
@@ -1317,7 +1317,7 @@ data:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null
     '皇家大厨': 'royal-chef-v2.png'
     };
 
-    // 生成英文卡牌名称（从文件名转换）
+    // 生成英文卡牌名称
     const cardNameEN = {};
     Object.entries(CARD_ICON_MAP).forEach(([cn, filename]) => {
         let en = filename.replace('-v2.png', '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -1340,9 +1340,9 @@ data:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null
     };
 
     // ---------- 全局状态 ----------
-    let currentLang = 'zh';          // 'zh' 或 'en'
-    let currentType = 'core';        // 默认选中核心卡
-    let currentCard = '';            // 当前选中的卡牌中文键
+    let currentLang = 'zh';
+    let currentType = 'core';
+    let currentCard = '';
 
     // DOM 元素
     const typeSelect = document.getElementById('typeSelect');
@@ -1378,8 +1378,8 @@ data:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null
         noteText.innerText = lang.note;
 
         // 更新类型下拉选项
-    const order = ['core', 'spell', 'building', 'melee', 'ranged', 'air', 'hero', 'evo', 'tower'];
-    const typeOptions = order.map(key => {
+const order = ['core', 'spell', 'building', 'melee', 'ranged', 'air', 'hero', 'evo', 'tower'];
+const typeOptions = order.map(key => {
             return `<option value="${key}">${lang.categories[key]}</option>`;
         }).join('');
         typeSelect.innerHTML = typeOptions;
@@ -1395,13 +1395,16 @@ data:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null
         const cfg = CATEGORY_CONFIG[currentType];
         const cards = cfg.cards;
         const lang = LANG[currentLang];
-        const options = Object.keys(cards).sort().map(cn => {
-            const displayName = (currentLang === 'en' && cardNameEN[cn]) ? cardNameEN[cn] : cn;
-            return `<option value="${cn}">${displayName}</option>`;
-        }).join('');
+const options = Object.keys(cards).sort((a, b) => {
+    const nameA = (currentLang === 'en' && cardNameEN[a]) ? cardNameEN[a] : a;
+    const nameB = (currentLang === 'en' && cardNameEN[b]) ? cardNameEN[b] : b;
+    return nameA.localeCompare(nameB, currentLang === 'zh' ? 'zh-CN' : undefined);
+}).map(cn => {
+    const displayName = (currentLang === 'en' && cardNameEN[cn]) ? cardNameEN[cn] : cn;
+    return `<option value="${cn}">${displayName}</option>`;
+}).join('');
         cardSelect.innerHTML = options;
         if (!currentCard || !cards[currentCard]) {
-            // 如果之前选中的卡牌在当前类型中不存在，则默认选第一个
             currentCard = cardSelect.value;
         } else {
             cardSelect.value = currentCard;
@@ -1481,7 +1484,6 @@ data:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null
     // 事件监听：类型变化
     typeSelect.addEventListener('change', function(e) {
         currentType = e.target.value;
-        // 重置卡牌选择为第一个
         const cfg = CATEGORY_CONFIG[currentType];
         const cards = cfg.cards;
         currentCard = Object.keys(cards)[0] || '';
@@ -1499,8 +1501,8 @@ data:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null
         if (lang === currentLang) return;
         currentLang = lang;
         updateUILanguage();
-        updateCardSelect();   // 刷新卡牌下拉（显示对应语言名称）
-        renderChart();        // 图表标题和轴名称更新
+        updateCardSelect();   
+        renderChart();
     }
 
     langZhBtn.addEventListener('click', () => setLanguage('zh'));
