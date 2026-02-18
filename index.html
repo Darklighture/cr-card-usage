@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>皇室战争 · 卡牌使用率聚焦</title>
+    <title>皇室战争 · 卡牌使用率聚焦 · Clash Royale · Card Usage Focus</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -85,6 +85,28 @@
             border-radius: 40px;
             font-size: 1.1rem;
         }
+        .lang-switch {
+            display: flex;
+            gap: 8px;
+            background: white;
+            padding: 6px 12px;
+            border-radius: 40px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+        .lang-btn {
+            border: none;
+            background: transparent;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #1e4b5a;
+            transition: 0.2s;
+        }
+        .lang-btn.active {
+            background: #1e4b5a;
+            color: white;
+        }
         .chart-container {
             width: 100%;
             height: 500px;
@@ -110,23 +132,17 @@
 <div class="dashboard">
     <div class="header">
         <div class="selector-group">
-            <label for="typeSelect">卡牌类型：</label>
-            <select id="typeSelect">
-                <option value="core">核心 (24张)</option>
-                <option value="spell">法术 (19张)</option>
-                <option value="building">建筑 (10张)</option>
-                <option value="melee">近战 (25张)</option>
-                <option value="ranged">远程 (25张)</option>
-                <option value="air">空军 (11张)</option>
-                <option value="hero">英雄 (15张)</option>
-                <option value="evo">进化 (37张)</option>
-                <option value="tower">塔楼 (4张)</option>
-            </select>
-            <label for="cardSelect">选择卡牌：</label>
+            <label id="typeLabel" for="typeSelect">卡牌类型：</label>
+            <select id="typeSelect"></select>
+            <label id="cardLabel" for="cardSelect">选择卡牌：</label>
             <select id="cardSelect" style="min-width: 160px;"></select>
         </div>
+        <div class="lang-switch">
+            <button id="langZh" class="lang-btn active">中文</button>
+            <button id="langEn" class="lang-btn">English</button>
+        </div>
         <div class="card-info">
-            <img id="cardIcon" src="" alt="icon" class="card-icon">
+            <img id="cardIcon" src="" alt="card icon" class="card-icon">
             <span class="avg-badge" id="avgDisplay">平均 0.0%</span>
         </div>
     </div>
@@ -134,12 +150,52 @@
     <div class="chart-container">
         <div id="chart"></div>
     </div>
-    <div class="note">📅 数据根据各赛季天梯topk玩家卡组整理</div>
+    <div class="note" id="noteText">📅  卡牌使用率数据根据各赛季天梯topk玩家卡组整理</div>
 </div>
 
 <script>
 (function() {
     "use strict";
+
+    // ---------- 语言包 ----------
+    const LANG = {
+        zh: {
+            typeLabel: '卡牌类型：',
+            cardLabel: '选择卡牌：',
+            avgPrefix: '平均',
+            note: '📅  卡牌使用率数据根据各赛季天梯topk玩家卡组整理',
+            categories: {
+                spell: '法术',
+                core: '核心',
+                building: '建筑',
+                evo: '进化',
+                melee: '近战',
+                air: '空军',
+                hero: '英雄',
+                ranged: '远程',
+                tower: '塔楼'
+            },
+            usageSuffix: '%'
+        },
+        en: {
+            typeLabel: 'Card Type:',
+            cardLabel: 'Select Card:',
+            avgPrefix: 'Avg',
+            note: '📅  Card usage data is compiled based on the decks of top players in the ladder each season.',
+            categories: {
+                spell: 'Spell',
+                core: 'Win-condition',
+                building: 'Building',
+                evo: 'Evolution',
+                melee: 'Melee',
+                air: 'Air',
+                hero: 'Hero',
+                ranged: 'Ranged',
+                tower: 'Tower'
+            },
+            usageSuffix: '%'
+        }
+    };
 
     // ---------- 时间轴定义 ----------
     const MONTHS_60 = (() => {
@@ -190,8 +246,7 @@
         return arr;
     })();
 
-    // ---------- 卡牌数据 ----------
-    // 法术卡
+    // ---------- 卡牌数据----------
     const SPELL_CARDS = {
         '万箭齐发': { color: '#4e79a7', data: [16.8,16.3,13.7,14.7,14.2,15.7,20.8,21.9,14.5,15,14,15.4,20.4,17.8,17.6,14.8,15.7,18.5,17.5,20.1,15.4,9.7,9.5,17.8,16.2,30.5,35.2,17.7,19.6,23.1,14.4,18.1,25.4,22.3,21,24.3,36.3,39.2,37.4,36.3,18.7,30.4,38.4,29.6,33,36,31.1,32.9,25.9,22,24.8,22.2,23.6,24.7,16.8,15.1,14.3,14.4,16.3,13.8] },
         '复仇滚木': { color: '#b277a3', data: [33.8,35.7,32.3,33.2,31.4,29.6,28.9,28.9,39.4,37.6,32.1,31.1,30.3,37.7,36.9,43,44.6,37.9,34.6,37.1,40.2,39.7,46.5,39.9,46.6,34.2,33.7,45,42.2,40.6,37.7,38.3,32.7,30.9,35.3,31.9,30.8,27.2,19.6,34.1,27.9,37.4,32.1,33.8,35.5,37,38.2,35.7,34,31.4,39.8,41.5,37.8,30.5,23.2,13,20.4,18.5,31,27] },
@@ -212,9 +267,7 @@
         '虚空法术': { color: '#6a9ea0', data: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,40.3,0,0.2,0.5,0.5,0.4,0.8,0.6,0.7,1,1.1,5.6,7.9,7.9,22.1,2.8,1.4,1.1,1.7,1.7] },
         '哥布林诅咒': { color: '#88a85e', data: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,41.1,19.3,25.6,14.4,19.7,0.6,0.4,0.4,0.3,0.5,1.5,0.4,0.1,0.5,0.3,0.4,0,0.5,0.2,2.2,2.4] },
         '藤蔓': { color: '#5d9b6b', data: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,55.1,14,18.1,11.7,11.4] }
-    };
-
-    // 核心卡 
+ };
     const CORE_CARDS = {
 '掘地矿工': { color: '#487A58', data: [24.1,24,20,18.4,15.6,12.3,11.7,11,20.5,18.2,14.9,14.6,17.3,15.6,13.8,18.5,17.4,16.3,14.6,14.8,20.8,16.5,24,22.9,23.8,27.6,30.8,19,15.7,20.2,23.6,21.6,15.4,14.5,18.2,17.6,22,13.5,8.8,11,10,10.6,17.4,15.4,17.3,16.3,12.7,15.9,12.3,14.1,16.6,13.4,14.5,11.4,13.5,12.9,13,9.2,8.3,5] },
                 '攻城炸弹人': { color: '#B54C4C', data: [7.9,10.7,2.5,2.4,2.4,13.9,9.6,4.7,5.6,5.7,4.6,4,3.5,3.5,4.1,5.9,7,5,4.6,4.5,7.4,5.1,9.1,7.1,7.5,10.6,14.2,10.5,10.2,13.2,15,12.6,11.1,9.2,10.5,8.2,21.8,13.8,2,1.8,2.2,8.9,4.2,5,7.2,6.7,8.6,13.6,9.2,11.9,8.5,11.4,11.9,8.9,10.9,14.2,17.9,8.3,7.8,4.7] },
@@ -240,9 +293,7 @@
                 '圣水戈仑': { color: '#6A9EA0', data: [0.7,0.9,1.5,1.2,1.1,0.9,1,0.9,1.1,0.6,0.6,0.6,0.5,0.4,0,0.4,1.1,0.4,1.4,0.9,0.6,3.3,2.9,0.6,0.1,0.8,0.8,0.9,1.3,2.7,3.8,3.1,4,0.9,1.5,2.1,2.6,3.1,1.5,1.5,0.5,3.4,3,1.2,0.6,1.7,2.8,2.4,2,2.3,3.3,1.8,1.6,2.5,1.7,1.5,2.5,1.9,2.7,2.1] },
                 '可疑草丛': { color: '#88A85E', data: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0.9,0.2,0.7,0.7,0.2,0.4,0.5,0.3,0.3,1.2,2.2,3.3,1.3,0.8,1.4,2.4,2.9,5,3.2] },
                 '符文巨人': { color: '#AB7E4B', data: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,3.1,4.4,0,0,0.1,0.4,0,0,0,0,0,0,0.1] }
-            };
-
-    // 建筑卡
+};
     const BUILDING_CARDS = {
                 '加农炮': {
                     color: '#7b8fa1',
@@ -283,12 +334,10 @@
                 '烈焰熔炉': {
                     color: '#e97444',
                     data: [0.5,0.3,0.3,0.6,0.9,2.3,1.6,1.4,2.4,1.8,2.1,0.6,0.4,0.6,0.3,0.8,0.8,1.2,0.7,0.4,0.1,0.2,0,0.8,0.2,0.2,0.2,0.5,0.5,0.1,0,0,0.1,0,0,0.1,0,0,0,0,0,0,0,0,0,0,0.1,0,0,0.1,0.1,0.1,0,0.1,null,null,null,null,null]
-                },
-            };
-
-    // 进化卡
+                }
+};
     const EVO_CARDS = {
-                '无进化卡': {
+               '无进化卡': {
                     color: '#7a8b8b',
                     data: [33.2,12.5,5.6,4.1,4.8,2.3,1.9,2,5.1,2.3,1.9,1.1,
                            2.6,2,1.7,0.9,1.3,1,0.8,0.9,0.7,0.6,0.3,0.2,
@@ -528,9 +577,7 @@
                            null,null,null,null,null,null,null,null,null,null,null,null,
                            null,null,null,null,null,9.2,7.1,9.5]
                 }
-            };
-
-    // 近战卡
+};
     const MELEE_CARDS = {
                 '哥布林': {
                     color: '#3ca0a0',
@@ -722,13 +769,10 @@
                 },
                 '狂战士': {
                     color: '#d9736c',
-                    data: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,2.9,0.1,0.8,4.2,2.6,6.3,23.2,20.8,4.4,4.3,2,2.9]
-                },
-            };
-
-    // 空军卡
+                    data: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,2.9,0.1,0.8,4.2,2.6,6.3,23.2,20.8,4.4,4.3,2,2.9]}
+};
     const AIR_CARDS = {
-                '凤凰': {
+                 '凤凰': {
                     color: '#e97444',
                     data: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,55.3,66.1,26.7,30.7,28.9,28.9,28.4,19.9,12.6,6.2,5.5,8.3,4.4,3.8,3.9,3.4,4.1,29.1,10.6,24.6,10.5,11.3,10.8,5.2,3.2,4.5,3.9,7.5,6.9,2,1.8,0.9,1.3,0.2,0.1,0.4,0.2,0.5,0.3]
                 },
@@ -806,11 +850,8 @@
                 },
                 '精灵女王': {
                     color: '#e8a75e',
-                    data: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0.4,15.6,0.3,1.2,1.2,0.6,0.8]
-                }
-            };
-
-    // 英雄卡
+                    data: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0.4,15.6,0.3,1.2,1.2,0.6,0.8]}
+};
     const HERO_CARDS = {
                 '无英雄卡': {
                     color: '#7a8b8b',
@@ -872,11 +913,9 @@
                     color: '#68a2b0',
                     data: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,13.9]
                 }
-            };
-
-    // 远程卡
+};
     const RANGED_CARDS = {
-                '弓箭手': {
+              '弓箭手': {
                     color: '#a7c5a1',
                     data: [5.9,4.5,3.7,4.6,4.7,3,3,3.8,3.7,4.1,3.9,2.7,
                            1.9,1.4,1.2,3.6,2.5,2.7,2.9,2,2.8,3.3,2.4,3,
@@ -1068,9 +1107,7 @@ data:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null
                     color: '#e97444',
                     data: [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,33.8,16.8,2.3,1.7,1.3,6.7]
                 }
-            };
-
-    // 塔楼卡
+};
     const TOWER_CARDS = {
         '公主塔': {
             color: '#7a8b8b',
@@ -1092,67 +1129,67 @@ data:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null
             data: [null, null, null, null, null, null, null, null, null, null, null,
                    29.8, 28.9, 0.5, 0.2, 0.2, 5.4, 5.3, 5.8, 12.2, 21.8, 1, 0, 0.3, 0.1]
         }
-    };
+};
 
-    // ---------- 卡牌名称到图标文件名的映射 (全小写，空格换为连字符，加 -v2.png) ----------
+    // ---------- 图标文件名映射----------
     const CARD_ICON_MAP = {
-    // 法术卡
-    '万箭齐发': 'arrows-v2.png',
-    '复仇滚木': 'the-log-v2.png',
-    '野蛮人滚桶': 'barbarian-barrel-v2.png',
-    '火球': 'fireball-v2.png',
-    '毒药法术': 'poison-v2.png',
-    '电击法术': 'zap-v2.png',
-    '雷电法术': 'lightning-v2.png',
-    '地震法术': 'earthquake-v2.png',
-    '冰冻法术': 'freeze-v2.png',
-    '大雪球': 'giant-snowball-v2.png',
-    '狂暴法术': 'rage-v2.png',
-    '火箭': 'rocket-v2.png',
-    '皇家速递': 'royal-delivery-v2.png',
-    '镜像法术': 'mirror-v2.png',
-    '克隆法术': 'clone-v2.png',
-    '飓风法术': 'tornado-v2.png',
-    '虚空法术': 'void-v2.png',
-    '哥布林诅咒': 'goblin-curse-v2.png',
-    '藤蔓': 'vines-v2.png',
-    // 核心卡
-    '掘地矿工': 'miner-v2.png',
-    '攻城炸弹人': 'wall-breakers-v2.png',
-    '雷电巨人': 'electro-giant-v2.png',
-    '迫击炮': 'mortar-v2.png',
-    '气球兵': 'balloon-v2.png',
-    '野猪骑士': 'hog-rider-v2.png',
-    '骷髅召唤': 'graveyard-v2.png',
-    'X连弩': 'x-bow-v2.png',
-    '巨人': 'giant-v2.png',
-    '电磁炮': 'sparky-v2.png',
-    '皇家野猪': 'royal-hogs-v2.png',
-    '熔岩猎犬': 'lava-hound-v2.png',
-    '三个火枪手': 'three-musketeers-v2.png',
-    '皇家巨人': 'royal-giant-v2.png',
-    '哥布林钻机': 'goblin-drill-v2.png',
-    '戈仑石人': 'golem-v2.png',
-    '哥布林巨人': 'goblin-giant-v2.png',
-    '野蛮人攻城锤': 'battle-ram-v2.png',
-    '蛮羊骑士': 'ram-rider-v2.png',
-    '哥布林飞桶': 'goblin-barrel-v2.png',
-    '骷髅气球': 'skeleton-barrel-v2.png',
-    '圣水戈仑': 'elixir-golem-v2.png',
-    '可疑草丛': 'suspicious-bush-v2.png',
-    '符文巨人': 'rune-giant-v2.png',
-    // 建筑卡
-    '加农炮': 'cannon-v2.png',
-    '采集器': 'elixir-collector-v2.png',
-    '特斯拉电磁塔': 'tesla-v2.png',
-    '哥布林小屋': 'goblin-hut-v2.png',
-    '炸弹塔': 'bomb-tower-v2.png',
-    '哥布林牢笼': 'goblin-cage-v2.png',
-    '地狱之塔': 'inferno-tower-v2.png',
-    '骷髅墓碑': 'tombstone-v2.png',
-    '野蛮人小屋': 'barbarian-hut-v2.png',
-    '烈焰熔炉': 'furnace-v2.png',
-    // 进化卡
+        // 法术卡
+        '万箭齐发': 'arrows-v2.png',
+        '复仇滚木': 'the-log-v2.png',
+        '野蛮人滚桶': 'barbarian-barrel-v2.png',
+        '火球': 'fireball-v2.png',
+        '毒药法术': 'poison-v2.png',
+        '电击法术': 'zap-v2.png',
+        '雷电法术': 'lightning-v2.png',
+        '地震法术': 'earthquake-v2.png',
+        '冰冻法术': 'freeze-v2.png',
+        '大雪球': 'giant-snowball-v2.png',
+        '狂暴法术': 'rage-v2.png',
+        '火箭': 'rocket-v2.png',
+        '皇家速递': 'royal-delivery-v2.png',
+        '镜像法术': 'mirror-v2.png',
+        '克隆法术': 'clone-v2.png',
+        '飓风法术': 'tornado-v2.png',
+        '虚空法术': 'void-v2.png',
+        '哥布林诅咒': 'goblin-curse-v2.png',
+        '藤蔓': 'vines-v2.png',
+        // 核心卡
+        '掘地矿工': 'miner-v2.png',
+        '攻城炸弹人': 'wall-breakers-v2.png',
+        '雷电巨人': 'electro-giant-v2.png',
+        '迫击炮': 'mortar-v2.png',
+        '气球兵': 'balloon-v2.png',
+        '野猪骑士': 'hog-rider-v2.png',
+        '骷髅召唤': 'graveyard-v2.png',
+        'X连弩': 'x-bow-v2.png',
+        '巨人': 'giant-v2.png',
+        '电磁炮': 'sparky-v2.png',
+        '皇家野猪': 'royal-hogs-v2.png',
+        '熔岩猎犬': 'lava-hound-v2.png',
+        '三个火枪手': 'three-musketeers-v2.png',
+        '皇家巨人': 'royal-giant-v2.png',
+        '哥布林钻机': 'goblin-drill-v2.png',
+        '戈仑石人': 'golem-v2.png',
+        '哥布林巨人': 'goblin-giant-v2.png',
+        '野蛮人攻城锤': 'battle-ram-v2.png',
+        '蛮羊骑士': 'ram-rider-v2.png',
+        '哥布林飞桶': 'goblin-barrel-v2.png',
+        '骷髅气球': 'skeleton-barrel-v2.png',
+        '圣水戈仑': 'elixir-golem-v2.png',
+        '可疑草丛': 'suspicious-bush-v2.png',
+        '符文巨人': 'rune-giant-v2.png',
+        // 建筑卡
+        '加农炮': 'cannon-v2.png',
+        '采集器': 'elixir-collector-v2.png',
+        '特斯拉电磁塔': 'tesla-v2.png',
+        '哥布林小屋': 'goblin-hut-v2.png',
+        '炸弹塔': 'bomb-tower-v2.png',
+        '哥布林牢笼': 'goblin-cage-v2.png',
+        '地狱之塔': 'inferno-tower-v2.png',
+        '骷髅墓碑': 'tombstone-v2.png',
+        '野蛮人小屋': 'barbarian-hut-v2.png',
+        '烈焰熔炉': 'furnace-v2.png',
+        // 进化卡
     '无进化卡': 'none-v2.png',
     '进化黄毛': 'evolved-barbarians-v2.png',
     '进化小骷髅': 'evolved-skeletons-v2.png',
@@ -1193,7 +1230,7 @@ data:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null
     '进化骷髅海': 'evolved-skeleton-army-v2.png',
     '进化幽灵': 'evolved-royal-ghost-v2.png',
     '进化皇猪': 'evolved-royal-hogs-v2.png',
-    // 近战卡
+        // 近战卡
     '哥布林': 'goblins-v2.png',
     '骷髅兵': 'skeletons-v2.png',
     '刺客': 'bandit-v2.png',
@@ -1280,30 +1317,48 @@ data:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null
     '皇家大厨': 'royal-chef-v2.png'
     };
 
+    // 生成英文卡牌名称（从文件名转换）
+    const cardNameEN = {};
+    Object.entries(CARD_ICON_MAP).forEach(([cn, filename]) => {
+        let en = filename.replace('-v2.png', '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        cardNameEN[cn] = en;
+    });
+
     const ICON_BASE_PATH = './icon/';
 
     // ---------- 类别配置 ----------
     const CATEGORY_CONFIG = {
-        spell: { months: MONTHS_60, cards: SPELL_CARDS, name: '法术' },
-        core: { months: MONTHS_60, cards: CORE_CARDS, name: '核心' },
-        building: { months: MONTHS_60, cards: BUILDING_CARDS, name: '建筑' },
-        evo: { months: MONTHS_32, cards: EVO_CARDS, name: '进化' },
-        melee: { months: MONTHS_60, cards: MELEE_CARDS, name: '近战' },
-        air: { months: MONTHS_60, cards: AIR_CARDS, name: '空军' },
-        hero: { months: MONTHS_50, cards: HERO_CARDS, name: '英雄' },
-        ranged: { months: MONTHS_60, cards: RANGED_CARDS, name: '远程' },
-        tower: { months: MONTHS_25, cards: TOWER_CARDS, name: '塔楼' }
+        spell: { months: MONTHS_60, cards: SPELL_CARDS, key: 'spell' },
+        core: { months: MONTHS_60, cards: CORE_CARDS, key: 'core' },
+        building: { months: MONTHS_60, cards: BUILDING_CARDS, key: 'building' },
+        evo: { months: MONTHS_32, cards: EVO_CARDS, key: 'evo' },
+        melee: { months: MONTHS_60, cards: MELEE_CARDS, key: 'melee' },
+        air: { months: MONTHS_60, cards: AIR_CARDS, key: 'air' },
+        hero: { months: MONTHS_50, cards: HERO_CARDS, key: 'hero' },
+        ranged: { months: MONTHS_60, cards: RANGED_CARDS, key: 'ranged' },
+        tower: { months: MONTHS_25, cards: TOWER_CARDS, key: 'tower' }
     };
 
-    // ---------- 页面元素 ----------
+    // ---------- 全局状态 ----------
+    let currentLang = 'zh';          // 'zh' 或 'en'
+    let currentType = 'core';        // 默认选中核心卡
+    let currentCard = '';            // 当前选中的卡牌中文键
+
+    // DOM 元素
     const typeSelect = document.getElementById('typeSelect');
     const cardSelect = document.getElementById('cardSelect');
     const cardIcon = document.getElementById('cardIcon');
     const avgDisplay = document.getElementById('avgDisplay');
     const chartDom = document.getElementById('chart');
+    const noteText = document.getElementById('noteText');
+    const langZhBtn = document.getElementById('langZh');
+    const langEnBtn = document.getElementById('langEn');
+    const typeLabel = document.getElementById('typeLabel');
+    const cardLabel = document.getElementById('cardLabel');
+
     const myChart = echarts.init(chartDom);
 
-    // 辅助：计算平均使用率（忽略null）
+    // 辅助：计算平均使用率
     function calcAverage(data) {
         let sum = 0, count = 0;
         for (let i = 0; i < data.length; i++) {
@@ -1315,43 +1370,76 @@ data:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null
         return count > 0 ? (sum / count).toFixed(1) : '0.0';
     }
 
-    // 更新二级下拉选项
-    function updateCardSelect(type) {
-        const cfg = CATEGORY_CONFIG[type];
+    // 更新界面语言
+    function updateUILanguage() {
+        const lang = LANG[currentLang];
+        typeLabel.innerText = lang.typeLabel;
+        cardLabel.innerText = lang.cardLabel;
+        noteText.innerText = lang.note;
+
+        // 更新类型下拉选项
+        const typeOptions = Object.keys(CATEGORY_CONFIG).map(key => {
+            const cat = CATEGORY_CONFIG[key];
+            return `<option value="${key}">${lang.categories[key]}</option>`;
+        }).join('');
+        typeSelect.innerHTML = typeOptions;
+        typeSelect.value = currentType;
+
+        // 更新语言切换按钮高亮
+        langZhBtn.classList.toggle('active', currentLang === 'zh');
+        langEnBtn.classList.toggle('active', currentLang === 'en');
+    }
+
+    // 更新卡牌下拉选项（根据当前类型和语言）
+    function updateCardSelect() {
+        const cfg = CATEGORY_CONFIG[currentType];
         const cards = cfg.cards;
-        const options = Object.keys(cards).sort().map(name => `<option value="${name}">${name}</option>`).join('');
+        const lang = LANG[currentLang];
+        const options = Object.keys(cards).sort().map(cn => {
+            const displayName = (currentLang === 'en' && cardNameEN[cn]) ? cardNameEN[cn] : cn;
+            return `<option value="${cn}">${displayName}</option>`;
+        }).join('');
         cardSelect.innerHTML = options;
-        // 触发更新图表
-        renderChart(type, cardSelect.value);
+        if (!currentCard || !cards[currentCard]) {
+            // 如果之前选中的卡牌在当前类型中不存在，则默认选第一个
+            currentCard = cardSelect.value;
+        } else {
+            cardSelect.value = currentCard;
+        }
+        renderChart();
     }
 
     // 渲染图表
-    function renderChart(type, cardName) {
-        const cfg = CATEGORY_CONFIG[type];
-        const card = cfg.cards[cardName];
+    function renderChart() {
+        const cfg = CATEGORY_CONFIG[currentType];
+        const card = cfg.cards[currentCard];
         if (!card) return;
 
         const months = cfg.months;
         const avg = calcAverage(card.data);
-        avgDisplay.innerText = `平均 ${avg}%`;
+        const avgText = LANG[currentLang].avgPrefix + ' ' + avg + LANG[currentLang].usageSuffix;
+        avgDisplay.innerText = avgText;
 
         // 设置图标
-        const iconFile = CARD_ICON_MAP[cardName] || 'default-v2.png';
+        const iconFile = CARD_ICON_MAP[currentCard] || 'default-v2.png';
         cardIcon.src = ICON_BASE_PATH + iconFile;
         cardIcon.onerror = function() {
-            this.src = ''; 
+            this.src = '';
             this.style.backgroundColor = '#ccc';
         };
+
+        // 系列名称（使用对应语言）
+        const seriesName = (currentLang === 'en' && cardNameEN[currentCard]) ? cardNameEN[currentCard] : currentCard;
 
         const option = {
             tooltip: {
                 trigger: 'axis',
                 axisPointer: { type: 'shadow' },
                 formatter: function(params) {
-        var p = params[0];
-        var val = p.value;
-        return p.name + '<br/>' + p.marker + p.seriesName + ': ' + 
-               (val != null ? val + '%' : 'N/A');
+                    var p = params[0];
+                    var val = p.value;
+                    return p.name + '<br/>' + p.marker + p.seriesName + ': ' + 
+                           (val != null ? val + '%' : 'N/A');
                 }
             },
             grid: { left: '7%', right: '7%', bottom: '12%', top: '10%' },
@@ -1364,13 +1452,13 @@ data:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null
             },
             yAxis: {
                 type: 'value',
-                name: '使用率 %',
+                name: LANG[currentLang].usageSuffix === '%' ? '使用率 %' : 'Usage %',
                 nameStyle: { fontSize: 11, color: '#2d6b7a' },
                 splitLine: { lineStyle: { color: '#e6f0f2', type: 'dashed', width: 0.8 } },
                 axisLabel: { fontSize: 10 }
             },
             series: [{
-                name: cardName,
+                name: seriesName,
                 type: 'line',
                 data: card.data,
                 symbol: 'none',
@@ -1380,7 +1468,7 @@ data:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null
                 markLine: {
                     silent: true,
                     lineStyle: { color: '#333', type: 'dashed', width: 1 },
-                    label: { show: true, position: 'end', formatter: '平均' },
+                    label: { show: true, position: 'end', formatter: LANG[currentLang].avgPrefix },
                     data: [{ yAxis: parseFloat(avg) }]
                 }
             }],
@@ -1390,20 +1478,38 @@ data:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null
         myChart.setOption(option, { notMerge: false });
     }
 
-    // 监听类型变化
+    // 事件监听：类型变化
     typeSelect.addEventListener('change', function(e) {
-        updateCardSelect(e.target.value);
+        currentType = e.target.value;
+        // 重置卡牌选择为第一个
+        const cfg = CATEGORY_CONFIG[currentType];
+        const cards = cfg.cards;
+        currentCard = Object.keys(cards)[0] || '';
+        updateCardSelect();
     });
 
-    // 监听卡牌变化
+    // 事件监听：卡牌变化
     cardSelect.addEventListener('change', function(e) {
-        renderChart(typeSelect.value, e.target.value);
+        currentCard = e.target.value;
+        renderChart();
     });
 
-    // 初始化：默认选中法术
-    updateCardSelect('spell');
+    // 语言切换
+    function setLanguage(lang) {
+        if (lang === currentLang) return;
+        currentLang = lang;
+        updateUILanguage();
+        updateCardSelect();   // 刷新卡牌下拉（显示对应语言名称）
+        renderChart();        // 图表标题和轴名称更新
+    }
 
-    // 窗口自适应
+    langZhBtn.addEventListener('click', () => setLanguage('zh'));
+    langEnBtn.addEventListener('click', () => setLanguage('en'));
+
+    // 初始化
+    updateUILanguage();
+    updateCardSelect();
+
     window.addEventListener('resize', () => myChart.resize());
 })();
 </script>
