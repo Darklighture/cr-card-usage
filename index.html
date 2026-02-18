@@ -1378,8 +1378,8 @@ data:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null
         noteText.innerText = lang.note;
 
         // 更新类型下拉选项
-        const typeOptions = Object.keys(CATEGORY_CONFIG).map(key => {
-            const cat = CATEGORY_CONFIG[key];
+    const order = ['core', 'spell', 'building', 'melee', 'ranged', 'air', 'hero', 'evo', 'tower'];
+    const typeOptions = order.map(key => {
             return `<option value="${key}">${lang.categories[key]}</option>`;
         }).join('');
         typeSelect.innerHTML = typeOptions;
