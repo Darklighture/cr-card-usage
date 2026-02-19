@@ -1455,7 +1455,7 @@ const options = Object.keys(cards).sort((a, b) => {
             },
             yAxis: {
                 type: 'value',
-                name: LANG[currentLang].usageSuffix === '%' ? '使用率 %' : 'Usage %',
+                name: currentLang === 'zh' ? '使用率 %' : 'Usage %',
                 nameStyle: { fontSize: 11, color: '#2d6b7a' },
                 splitLine: { lineStyle: { color: '#e6f0f2', type: 'dashed', width: 0.8 } },
                 axisLabel: { fontSize: 10 }
