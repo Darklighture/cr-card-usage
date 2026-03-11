@@ -278,7 +278,7 @@
         const avg = calcAverage(card.data);
         avgDisplay.innerText = LANG[currentLang].avgPrefix + ' ' + avg + LANG[currentLang].usageSuffix;
 
-        const iconFile = CARD_ICON_MAP[currentCard] || 'default-v2.png';
+        const iconFile = CARD_ICON_MAP[currentCard] || 'default.png';
         cardIcon.src = ICON_BASE_PATH + iconFile;
         cardIcon.onerror = function() { this.src = ''; this.style.backgroundColor = '#ccc'; };
 
@@ -358,7 +358,7 @@
 
         // 生成英文名映射
         Object.entries(CARD_ICON_MAP).forEach(([cn, filename]) => {
-            let en = filename.replace('-v2.png', '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            let en = filename.replace('.png', '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
             cardNameEN[cn] = en;
         });
 
