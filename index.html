@@ -109,7 +109,6 @@
         }
         .chart-container {
             width: 100%;
-            height: 500px;
             background: #ffffff;
             border-radius: 28px;
             box-shadow: inset 0 1px 6px rgba(0,0,0,0.02), 0 12px 28px rgba(0,0,0,0.05);
@@ -119,7 +118,7 @@
         }
         #chart {
             width: 100%;
-            height: 100%;
+            height: 500px;
         }
         .note {
             text-align: center;
@@ -169,7 +168,8 @@
                 core: '核心', spell: '法术', building: '建筑', melee: '近战',
                 ranged: '远程', air: '空军', hero: '英雄', evo: '进化', tower: '塔楼'
             },
-            usageSuffix: '%'
+            usageSuffix: '%',
+            allOption: '全部'
         },
         en: {
             typeLabel: 'Card Type:',
@@ -180,7 +180,8 @@
                 core: 'Win-condition', spell: 'Spell', building: 'Building', melee: 'Melee',
                 ranged: 'Ranged', air: 'Air', hero: 'Hero', evo: 'Evolution', tower: 'Tower'
             },
-            usageSuffix: '%'
+            usageSuffix: '%',
+            allOption: 'All'
         }
     };
 
@@ -191,13 +192,13 @@
     const MONTHS_25 = (() => { let arr = []; for (let y = 2024; y <= 2026; y++) { for (let m = 1; m <= 12; m++) { if (y === 2026 && m > 1) break; arr.push(`${y}-${String(m).padStart(2,'0')}`); } } return arr; })();
 
     const ICON_BASE_PATH = './icon/';
+    const ALL_KEY = '__ALL__';
 
     // ---------- 全局状态与动态数据配置 ----------
     let currentLang = 'zh';
     let currentType = 'core';
-    let currentCard = '';
+    let currentCard = ALL_KEY;   // 默认显示全部
     
-    // 这些变量将由 JSON 数据填充
     let CATEGORY_CONFIG = {};
     let CARD_ICON_MAP = {};
     let cardNameEN = {};
@@ -249,52 +250,131 @@
         const cfg = CATEGORY_CONFIG[currentType];
         const cards = cfg.cards;
         
-        const options = Object.keys(cards).sort((a, b) => {
+        const allText = LANG[currentLang].allOption;
+        let options = `<option value="${ALL_KEY}">${allText}</option>`;
+        
+        const sortedCards = Object.keys(cards).sort((a, b) => {
             const nameA = (currentLang === 'en' && cardNameEN[a]) ? cardNameEN[a] : a;
             const nameB = (currentLang === 'en' && cardNameEN[b]) ? cardNameEN[b] : b;
             return nameA.localeCompare(nameB, currentLang === 'zh' ? 'zh-CN' : undefined);
-        }).map(cn => {
+        });
+        
+        for (let cn of sortedCards) {
             const displayName = (currentLang === 'en' && cardNameEN[cn]) ? cardNameEN[cn] : cn;
-            return `<option value="${cn}">${displayName}</option>`;
-        }).join('');
+            options += `<option value="${cn}">${displayName}</option>`;
+        }
         
         cardSelect.innerHTML = options;
-        if (!currentCard || !cards[currentCard]) {
-            currentCard = cardSelect.value;
-        } else {
-            cardSelect.value = currentCard;
+        
+        if (currentCard !== ALL_KEY && !cards[currentCard]) {
+            currentCard = ALL_KEY;
         }
+        cardSelect.value = currentCard;
+        
+        // 更新右上角图标和平均值
+        if (currentCard === ALL_KEY) {
+            cardIcon.src = '';
+            cardIcon.style.backgroundColor = '#ccc';
+            let allAvg = 0, count = 0;
+            for (let card of Object.values(cards)) {
+                const avg = parseFloat(calcAverage(card.data));
+                allAvg += avg;
+                count++;
+            }
+            const typeAvg = count > 0 ? (allAvg / count).toFixed(1) : '0.0';
+            avgDisplay.innerText = LANG[currentLang].avgPrefix + ' ' + typeAvg + LANG[currentLang].usageSuffix;
+        } else {
+            const card = cards[currentCard];
+            if (card) {
+                const avg = calcAverage(card.data);
+                avgDisplay.innerText = LANG[currentLang].avgPrefix + ' ' + avg + LANG[currentLang].usageSuffix;
+                const iconFile = CARD_ICON_MAP[currentCard] || 'default.png';
+                cardIcon.src = ICON_BASE_PATH + iconFile;
+                cardIcon.onerror = function() { this.src = ''; this.style.backgroundColor = '#ccc'; };
+            }
+        }
+        
         renderChart();
     }
 
-    // 渲染图表
+    // 渲染主图表
     function renderChart() {
         if (!CATEGORY_CONFIG[currentType]) return;
         const cfg = CATEGORY_CONFIG[currentType];
-        const card = cfg.cards[currentCard];
-        if (!card) return;
-
         const months = cfg.months;
-        const avg = calcAverage(card.data);
-        avgDisplay.innerText = LANG[currentLang].avgPrefix + ' ' + avg + LANG[currentLang].usageSuffix;
-
-        const iconFile = CARD_ICON_MAP[currentCard] || 'default.png';
-        cardIcon.src = ICON_BASE_PATH + iconFile;
-        cardIcon.onerror = function() { this.src = ''; this.style.backgroundColor = '#ccc'; };
-
-        const seriesName = (currentLang === 'en' && cardNameEN[currentCard]) ? cardNameEN[currentCard] : currentCard;
-
+        
+        let series = [];
+        let titleText = '';
+        
+        if (currentCard === ALL_KEY) {
+            const cards = cfg.cards;
+            for (let [cn, card] of Object.entries(cards)) {
+                const displayName = (currentLang === 'en' && cardNameEN[cn]) ? cardNameEN[cn] : cn;
+                series.push({
+                    name: displayName,
+                    type: 'line',
+                    data: card.data,
+                    symbol: 'none',
+                    color: card.color, 
+                    lineStyle: { width: 1.5, color: card.color },
+                    connectNulls: false,
+                    emphasis: { focus: 'series' }
+                });
+            }
+            titleText = LANG[currentLang].categories[currentType] + ' · ' + LANG[currentLang].allOption;
+        } else {
+            const card = cfg.cards[currentCard];
+            if (!card) return;
+            const avg = calcAverage(card.data);
+            const seriesName = (currentLang === 'en' && cardNameEN[currentCard]) ? cardNameEN[currentCard] : currentCard;
+            series.push({
+                name: seriesName,
+                type: 'line',
+                data: card.data,
+                symbol: 'none',
+                color: card.color, 
+                lineStyle: { width: 2.5, color: card.color },
+                areaStyle: { color: card.color, opacity: 0.1 },
+                markLine: {
+                    silent: true,
+                    lineStyle: { color: '#333', type: 'dashed', width: 1 },
+                    label: { show: true, position: 'end', formatter: LANG[currentLang].avgPrefix },
+                    data: [{ yAxis: parseFloat(avg) }]
+                },
+                connectNulls: false
+            });
+            titleText = seriesName;
+        }
+        
         const option = {
+            title: {
+                text: titleText,
+                left: 'center',
+                top: 0,
+                textStyle: { fontSize: 13, color: '#1e4b5a', fontWeight: 'normal' }
+            },
             tooltip: {
                 trigger: 'axis',
                 axisPointer: { type: 'shadow' },
                 formatter: function(params) {
-                    var p = params[0];
-                    var val = p.value;
-                    return p.name + '<br/>' + p.marker + p.seriesName + ': ' + (val != null ? val + '%' : 'N/A');
+                    let res = params[0].axisValue + '<br/>';
+                    for (let p of params) {
+                        let val = p.value;
+                        res += p.marker + p.seriesName + ': ' + (val != null ? val + '%' : 'N/A') + '<br/>';
+                    }
+                    return res;
                 }
             },
-            grid: { left: '7%', right: '7%', bottom: '12%', top: '10%' },
+            legend: {
+                type: 'scroll',
+                orient: 'horizontal',
+                left: 'left',
+                top: 25,
+                itemWidth: 20,
+                itemHeight: 12,
+                textStyle: { fontSize: 10 }
+            },
+            grid: { left: '7%', right: '7%', bottom: '12%', top: '15%', containLabel: true },
             xAxis: {
                 type: 'category', data: months, axisTick: { show: false },
                 axisLabel: { interval: 5, rotate: 45, fontSize: 9, margin: 12, color: '#4a6a78' },
@@ -306,32 +386,24 @@
                 splitLine: { lineStyle: { color: '#e6f0f2', type: 'dashed', width: 0.8 } },
                 axisLabel: { fontSize: 10 }
             },
-            series: [{
-                name: seriesName, type: 'line', data: card.data, symbol: 'none',
-                lineStyle: { width: 2.5, color: card.color }, connectNulls: false,
-                areaStyle: { color: card.color, opacity: 0.1 },
-                markLine: {
-                    silent: true, lineStyle: { color: '#333', type: 'dashed', width: 1 },
-                    label: { show: true, position: 'end', formatter: LANG[currentLang].avgPrefix },
-                    data: [{ yAxis: parseFloat(avg) }]
-                }
-            }],
+            series: series,
             backgroundColor: '#ffffff',
             dataZoom: [{ type: 'inside', start: 0, end: 100 }]
         };
-        myChart.setOption(option, { notMerge: false });
+        // 关键修改：使用 notMerge: true 强制完全替换配置，避免旧系列残留
+        myChart.setOption(option, { notMerge: true });
     }
 
     // 事件监听
     typeSelect.addEventListener('change', function(e) {
         currentType = e.target.value;
-        currentCard = Object.keys(CATEGORY_CONFIG[currentType].cards)[0] || '';
+        currentCard = ALL_KEY;
         updateCardSelect();
     });
 
     cardSelect.addEventListener('change', function(e) {
         currentCard = e.target.value;
-        renderChart();
+        updateCardSelect();
     });
 
     function setLanguage(lang) {
@@ -347,7 +419,6 @@
 
     // ---------- 核心：异步加载数据 ----------
     try {
-        // 显示加载提示
         myChart.showLoading({ text: '正在加载数据...', color: '#1e4b5a', textColor: '#1e4b5a', maskColor: 'rgba(255, 255, 255, 0.8)' });
 
         const res = await fetch('data.json');
@@ -356,13 +427,11 @@
 
         CARD_ICON_MAP = data.icons;
 
-        // 生成英文名映射
         Object.entries(CARD_ICON_MAP).forEach(([cn, filename]) => {
             let en = filename.replace('.png', '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
             cardNameEN[cn] = en;
         });
 
-        // 绑定类别配置
         CATEGORY_CONFIG = {
             spell: { months: MONTHS_60, cards: data.cards.spell, key: 'spell' },
             core: { months: MONTHS_60, cards: data.cards.core, key: 'core' },
@@ -375,7 +444,6 @@
             tower: { months: MONTHS_25, cards: data.cards.tower, key: 'tower' }
         };
 
-        // 初始化渲染
         myChart.hideLoading();
         updateUILanguage();
         updateCardSelect();
