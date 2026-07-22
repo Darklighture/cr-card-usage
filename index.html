@@ -208,8 +208,10 @@
     </section>
 
     <section class="panel" id="sec5">
-        <h2 class="panel-title" id="t5">⑤ 卡牌稳定性（变异系数）</h2>
-        <div class="panel-desc" id="d5">变异系数 = 标准差 / 平均值，衡量使用率随版本的波动程度；越低越稳定（版本宠儿），越高越随版本起伏。</div>
+        <h2 class="panel-title" id="t5">⑤ 卡牌稳定性（变异系数）
+            <span class="date-pick"><span id="lblFrom2">起</span> <select id="stabStart"></select> <span id="lblTo2">止</span> <select id="stabEnd"></select></span>
+        </h2>
+        <div class="panel-desc" id="d5">变异系数 = 标准差 / 平均值，衡量所选区间内使用率的波动程度；越低越稳定（版本宠儿），越高越随版本起伏。</div>
         <div class="chart-box"><div id="chart5" style="height:480px;"></div></div>
     </section>
 
@@ -240,7 +242,7 @@
                 2: '各卡牌使用率随时间变化；点击下方卡牌标签可切换显示/隐藏对应曲线（默认显示热度最高的 8 张）。',
                 3: '纵向为卡牌（按平均使用率排序），横向为月份；颜色越红=使用率越高，越绿=越低，空白处=该卡尚未推出或无数据。',
                 4: '所选起止日期之间使用率的变化量（终点 − 起点）；绿色=上涨，红色=下跌。可自由选择时间段。',
-                5: '变异系数 = 标准差 / 平均值，衡量使用率随版本的波动程度；越低越稳定（版本宠儿），越高越随版本起伏。'
+                5: '变异系数 = 标准差 / 平均值，衡量所选区间内使用率的波动程度；越低越稳定（版本宠儿），越高越随版本起伏。'
             },
             fromLabel: '起', toLabel: '止',
             yUsage: '使用率 (%)', yAvg: '平均使用率 (%)',
@@ -267,7 +269,7 @@
                 2: 'Usage rate over time; click the card labels below to toggle each line (top 8 by popularity shown by default).',
                 3: 'Rows = cards (sorted by avg usage), columns = months; red = high, green = low, blank = not released / no data.',
                 4: 'Change in usage between selected start and end dates (end - start); green = up, red = down.',
-                5: 'Coefficient of variation = std / mean; lower = more stable across versions, higher = more volatile.'
+                5: 'Coefficient of variation = std / mean, over the selected period; lower = more stable, higher = more volatile.'
             },
             fromLabel: 'From', toLabel: 'To',
             yUsage: 'Usage (%)', yAvg: 'Avg Usage (%)',
@@ -527,6 +529,8 @@
         document.querySelectorAll('.nav-btn').forEach((b, i) => { b.textContent = lang.nav[i]; });
         document.getElementById('lblFrom').textContent = lang.fromLabel;
         document.getElementById('lblTo').textContent = lang.toLabel;
+        document.getElementById('lblFrom2').textContent = lang.fromLabel;
+        document.getElementById('lblTo2').textContent = lang.toLabel;
     }
 
     // 更新类别平均徽标 + 涨跌榜日期下拉
@@ -544,6 +548,12 @@
         trendEnd.innerHTML = opts;
         trendStart.value = '0';
         trendEnd.value = String(cfg.timeLabels.length - 1);
+        const stabStart = document.getElementById('stabStart');
+        const stabEnd = document.getElementById('stabEnd');
+        stabStart.innerHTML = opts;
+        stabEnd.innerHTML = opts;
+        stabStart.value = '0';
+        stabEnd.value = String(cfg.timeLabels.length - 1);
     }
 
     // ----------------------------- 各图表渲染 ---------------------------------
@@ -666,9 +676,13 @@
 
     function renderStability() {
         const cfg = CATEGORY_CONFIG[currentType];
+        const si = parseInt(document.getElementById('stabStart').value, 10) || 0;
+        const ei = parseInt(document.getElementById('stabEnd').value, 10) || (cfg.timeLabels.length - 1);
+        const lo = Math.min(si, ei), hi = Math.max(si, ei);
         const rows = Object.entries(cfg.cards).map(([cn, card]) => {
-            const m = mean(card.data);
-            const cv = (m > 0) ? std(card.data) / m : 0;
+            const slice = card.data.slice(lo, hi + 1);
+            const m = mean(slice);
+            const cv = (m > 0) ? std(slice) / m : 0;
             return { cn, cv: +cv.toFixed(3) };
         }).sort((a, b) => a.cv - b.cv);
         const names = rows.map(r => disp(r.cn));
@@ -697,8 +711,10 @@
 
     // ----------------------------- 事件监听 ---------------------------------
     typeSelect.addEventListener('change', (e) => { currentType = e.target.value; renderAll(); });
-    trendStart.addEventListener('change', renderRiseFall);
-    trendEnd.addEventListener('change', renderRiseFall);
+        trendStart.addEventListener('change', renderRiseFall);
+        trendEnd.addEventListener('change', renderRiseFall);
+        document.getElementById('stabStart').addEventListener('change', renderStability);
+        document.getElementById('stabEnd').addEventListener('change', renderStability);
     langZhBtn.addEventListener('click', () => { if (currentLang !== 'zh') { currentLang = 'zh'; updateUILanguage(); renderAll(); } });
     langEnBtn.addEventListener('click', () => { if (currentLang !== 'en') { currentLang = 'en'; updateUILanguage(); renderAll(); } });
     document.querySelectorAll('.nav-btn').forEach(b => b.addEventListener('click', () => {
